@@ -1,13 +1,15 @@
 package mail
 
 import (
+	"context"
+
 	"github.com/go-gomail/gomail"
-	"github.com/go-kratos/kratos/v2/log"
+	"github.com/tx7do/go-notifier"
 )
 
-// Client 邮件客户端
-type Client struct {
-	log *log.Helper
+// Notifier 邮件客户端
+type Notifier struct {
+	log notifier.Logger
 
 	host     string
 	port     int
@@ -19,9 +21,11 @@ type Client struct {
 	toUsers []string
 }
 
-// NewClient 创建新的客户端
-func NewClient(opts ...Option) *Client {
-	c := &Client{}
+// NewNotifier 创建新的客户端
+func NewNotifier(opts ...Option) notifier.Notifier {
+	c := &Notifier{
+		log: notifier.DefaultLogger{},
+	}
 	for _, opt := range opts {
 		opt(c)
 	}
@@ -30,12 +34,12 @@ func NewClient(opts ...Option) *Client {
 }
 
 // init 初始化
-func (c *Client) init() {
+func (c *Notifier) init() {
 	c.mailer = gomail.NewDialer(c.host, c.port, c.user, c.password)
 }
 
 // Send 发送邮件
-func (c *Client) Send(title, content string) error {
+func (c *Notifier) Send(_ context.Context, title, content string) error {
 	sendMsg := gomail.NewMessage()
 	sendMsg.SetHeader("From", c.user)
 	sendMsg.SetHeader("To", c.toUsers...)
@@ -46,6 +50,6 @@ func (c *Client) Send(title, content string) error {
 }
 
 // contentToHtml 讲发送内容转换为html格式
-func (c *Client) contentToHtml(content string) string {
+func (c *Notifier) contentToHtml(content string) string {
 	return content
 }

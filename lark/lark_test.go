@@ -1,4 +1,4 @@
-package telegram
+package lark
 
 import (
 	"github.com/stretchr/testify/assert"

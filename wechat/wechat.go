@@ -1,10 +1,12 @@
 package wechat
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"github.com/go-kratos/kratos/v2/log"
+
 	"github.com/go-resty/resty/v2"
+	"github.com/tx7do/go-notifier"
 )
 
 const (
@@ -40,12 +42,12 @@ type textMessage struct {
 	Safe    int               `json:"safe"`
 }
 
-// Client 微信客户端
+// Notifier 微信客户端
 // https://cloud.tencent.com/developer/news/194102
 // https://www.daimajiaoliu.com/daima/487120fbb9003f4
 // https://www.cxyzjd.com/article/suiban7403/78198536
-type Client struct {
-	log *log.Helper
+type Notifier struct {
+	log notifier.Logger
 
 	cli *resty.Client
 
@@ -55,8 +57,10 @@ type Client struct {
 	token accessToken
 }
 
-func NewClient(opts ...Option) *Client {
-	c := &Client{}
+func NewNotifier(opts ...Option) notifier.Notifier {
+	c := &Notifier{
+		log: notifier.DefaultLogger{},
+	}
 	for _, opt := range opts {
 		opt(c)
 	}
@@ -65,12 +69,12 @@ func NewClient(opts ...Option) *Client {
 }
 
 // init 初始化
-func (c *Client) init() {
+func (c *Notifier) init() {
 	c.cli = resty.New()
 }
 
 // Send 发送聊天消息
-func (c *Client) Send(_, content string) error {
+func (c *Notifier) Send(_ context.Context, _, content string) error {
 
 	if !c.token.Valid() || c.token.Expires() {
 		token, err := c.getToken(c.corpId, c.corpSecret)
@@ -103,7 +107,7 @@ func (c *Client) Send(_, content string) error {
 	return nil
 }
 
-func (c *Client) getToken(corpId, corpSecret string) (at accessToken, err error) {
+func (c *Notifier) getToken(corpId, corpSecret string) (at accessToken, err error) {
 	URL := getTokenUrl + corpId + "&corpsecret=" + corpSecret
 	resp, err := c.cli.SetRetryCount(3).R().
 		SetHeader("Accept", "application/json").

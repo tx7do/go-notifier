@@ -1,4 +1,4 @@
-package feishu
+package lark
 
 import (
 	"reflect"

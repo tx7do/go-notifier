@@ -1,25 +1,26 @@
 package dingtalk
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/go-resty/resty/v2"
 	"io"
 	"math"
 	"net/url"
 	"strconv"
 	"time"
 
-	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-resty/resty/v2"
+	"github.com/tx7do/go-notifier"
 )
 
 // https://oapi.dingtalk.com/robot/send?access_token=xxx
 const dingTalkOAPI = "oapi.dingtalk.com"
 
-var dingTalkURL url.URL = url.URL{
+var dingTalkURL = url.URL{
 	Scheme: "https",
 	Host:   dingTalkOAPI,
 	Path:   "robot/send",
@@ -30,9 +31,9 @@ type response struct {
 	ErrCode int64  `json:"errcode"`
 }
 
-// Client 钉钉客户端
-type Client struct {
-	log *log.Helper
+// Notifier 钉钉客户端
+type Notifier struct {
+	log notifier.Logger
 
 	cli *resty.Client
 
@@ -40,8 +41,10 @@ type Client struct {
 	secret      string
 }
 
-func NewClient(opts ...Option) *Client {
-	c := &Client{}
+func NewNotifier(opts ...Option) notifier.Notifier {
+	c := &Notifier{
+		log: notifier.DefaultLogger{},
+	}
 	for _, opt := range opts {
 		opt(c)
 	}
@@ -50,12 +53,12 @@ func NewClient(opts ...Option) *Client {
 }
 
 // init 初始化
-func (c *Client) init() {
+func (c *Notifier) init() {
 	c.cli = resty.New()
 }
 
 // Send 发送聊天消息
-func (c *Client) Send(_, content string) error {
+func (c *Notifier) Send(_ context.Context, _, content string) error {
 
 	pushURL, err := c.url(c.accessToken, c.secret)
 	if err != nil {
@@ -94,13 +97,13 @@ func (c *Client) Send(_, content string) error {
 
 // 获取钉钉API调用链接
 // 如果没有加签，secret 设置为 "" 即可
-func (c *Client) url(accessToken string, secret string) (string, error) {
+func (c *Notifier) url(accessToken string, secret string) (string, error) {
 	timestamp := strconv.FormatInt(time.Now().Unix()*1000, 10)
 	return c.urlWithTimestamp(timestamp, accessToken, secret)
 }
 
 // urlWithTimestamp 获取钉钉API调用链接
-func (c *Client) urlWithTimestamp(timestamp string, accessToken string, secret string) (string, error) {
+func (c *Notifier) urlWithTimestamp(timestamp string, accessToken string, secret string) (string, error) {
 	dtu := dingTalkURL
 	value := url.Values{}
 	value.Set("access_token", accessToken)
@@ -123,7 +126,7 @@ func (c *Client) urlWithTimestamp(timestamp string, accessToken string, secret s
 }
 
 // sign 生成签名
-func (c *Client) sign(timestamp string, secret string) (string, error) {
+func (c *Notifier) sign(timestamp string, secret string) (string, error) {
 	stringToSign := fmt.Sprintf("%s\n%s", timestamp, secret)
 	h := hmac.New(sha256.New, []byte(secret))
 	if _, err := io.WriteString(h, stringToSign); err != nil {
@@ -134,7 +137,7 @@ func (c *Client) sign(timestamp string, secret string) (string, error) {
 
 // validate 校验请求是否合法
 // https://ding-doc.dingtalk.com/doc#/serverapi2/elzz1p
-func (c *Client) validate(signStr, timestamp, secret string) (bool, error) {
+func (c *Notifier) validate(signStr, timestamp, secret string) (bool, error) {
 	t, err := strconv.ParseInt(timestamp, 10, 64)
 	if err != nil {
 		return false, err

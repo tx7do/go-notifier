@@ -1,6 +1,7 @@
-package feishu
+package lark
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -10,20 +11,20 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/go-kratos/kratos/v2/log"
 	"github.com/go-resty/resty/v2"
+	"github.com/tx7do/go-notifier"
 )
 
-const feishuAPI = "https://open.feishu.cn/open-apis/bot/v2/hook/"
+const larkApiUrl = "https://open.feishu.cn/open-apis/bot/v2/hook/"
 
 type response struct {
 	Code int64  `json:"code"`
 	Msg  string `json:"msg"`
 }
 
-// Client 飞书客户端
-type Client struct {
-	log *log.Helper
+// Notifier 飞书客户端
+type Notifier struct {
+	log notifier.Logger
 
 	cli *resty.Client
 
@@ -31,8 +32,10 @@ type Client struct {
 	secret      string
 }
 
-func NewClient(opts ...Option) *Client {
-	c := &Client{}
+func NewNotifier(opts ...Option) notifier.Notifier {
+	c := &Notifier{
+		log: notifier.DefaultLogger{},
+	}
 	for _, opt := range opts {
 		opt(c)
 	}
@@ -41,12 +44,12 @@ func NewClient(opts ...Option) *Client {
 }
 
 // init 初始化
-func (c *Client) init() {
+func (c *Notifier) init() {
 	c.cli = resty.New()
 }
 
 // Send 发送聊天消息
-func (c *Client) Send(_, content string) error {
+func (c *Notifier) Send(_ context.Context, _, content string) error {
 	if len(c.accessToken) < 1 {
 		return errors.New("accessToken is empty")
 	}
@@ -69,7 +72,7 @@ func (c *Client) Send(_, content string) error {
 		return err
 	}
 
-	URL := fmt.Sprintf("%v%v", feishuAPI, c.accessToken)
+	URL := fmt.Sprintf("%v%v", larkApiUrl, c.accessToken)
 	resp, err := c.cli.SetRetryCount(3).R().
 		SetBody(body).
 		SetHeader("Accept", "application/json").
@@ -91,7 +94,7 @@ func (c *Client) Send(_, content string) error {
 }
 
 // sign 生成签名
-func (c *Client) sign(secret string, timestamp int64) (string, error) {
+func (c *Notifier) sign(secret string, timestamp int64) (string, error) {
 	stringToSign := fmt.Sprintf("%v", timestamp) + "\n" + secret
 	var data []byte
 	h := hmac.New(sha256.New, []byte(stringToSign))

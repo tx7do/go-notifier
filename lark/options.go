@@ -1,4 +1,4 @@
-package dingtalk
+package lark
 
 import "github.com/tx7do/go-notifier"
 
@@ -11,14 +11,14 @@ func Logger(logger notifier.Logger) Option {
 	}
 }
 
-// AccessToken 钉钉访问令牌
+// AccessToken 飞书访问令牌
 func AccessToken(token string) Option {
 	return func(s *Notifier) {
 		s.accessToken = token
 	}
 }
 
-// Secret 钉钉签名密钥
+// Secret 飞书签名密钥
 func Secret(secret string) Option {
 	return func(s *Notifier) {
 		s.secret = secret
